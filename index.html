@@ -1,0 +1,537 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Ruleta — Walter, 2 mentirosas, Doménica y Prof. Yoli</title>
+  <style>
+    :root{
+      --bg: #0b0b10;
+      --panel: rgba(255,255,255,.06);
+      --text: #f7f7fb;
+      --muted: #b9c0d0;
+      --accent: #8b5cf6; /* default */
+      --accent-2: #22d3ee;
+      --shadow: 0 10px 30px rgba(0,0,0,.35);
+    }
+    /* Taylor theme (pastel glam) */
+    [data-theme="taylor"]{
+      --bg: radial-gradient(1200px 800px at 20% 10%, #f7cad0 0%, #cdb4db 40%, #a2d2ff 80%, #1b1b3a 120%);
+      --panel: rgba(255,255,255,.14);
+      --text: #1b1b3a;
+      --muted: #3b3b5c;
+      --accent: #e9c46a;
+      --accent-2: #d7263d;
+    }
+    /* HuntrX theme (neon synth) */
+    [data-theme="huntrx"]{
+      --bg: radial-gradient(1200px 800px at 80% 20%, #111827 0%, #0f172a 40%, #1f2937 70%, #000 100%);
+      --panel: rgba(255,255,255,.08);
+      --text: #e5f6ff;
+      --muted: #91a4b7;
+      --accent: #00e5ff;
+      --accent-2: #ff00a8;
+    }
+
+    [data-theme="bttf"]{
+      --bg: radial-gradient(1200px 800px at 60% 10%, #0b0d18 0%, #0d1323 45%, #020308 100%);
+      --panel: rgba(255,255,255,.08);
+      --text: #e6f1ff;
+      --muted: #9bb1d4;
+      --accent: #FF6A00;  /* naranja del logo */
+      --accent-2: #00B4FF;/* azul eléctrico */
+    }
+
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Inter, "Helvetica Neue", Arial, Noto Sans, "Apple Color Emoji","Segoe UI Emoji";
+      color: var(--text);
+      background: var(--bg);
+      background-attachment: fixed;
+      display:flex; align-items:center; justify-content:center;
+    }
+    .app{ width:min(1100px, 94vw); margin: 24px auto; }
+
+    .card{
+      background: var(--panel);
+      border: 1px solid rgba(255,255,255,.10);
+      backdrop-filter: blur(8px);
+      border-radius: 20px; padding: 18px;
+      box-shadow: var(--shadow);
+    }
+    header{
+      display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom: 14px;
+    }
+    .title{ font-weight:800; letter-spacing:.3px; font-size: clamp(18px, 3.2vw, 28px); display:flex; gap:10px; align-items:center; }
+    .badge{ font-size:12px; padding:4px 10px; border-radius:999px; border:1px solid rgba(255,255,255,.2); background: rgba(255,255,255,.06)}
+
+    .grid{ display:grid; grid-template-columns: 1.2fr .9fr; gap: 18px; }
+    @media (max-width: 880px){ .grid{ grid-template-columns: 1fr; } }
+
+    .wheel-wrap{ position:relative; aspect-ratio:1/1; width: 100%; max-width: 560px; margin:auto; }
+    canvas{ width:100%; height:100%; display:block; border-radius: 18px; }
+
+    .pointer{
+      position:absolute; left:50%; top:-2px; transform: translateX(-50%);
+      width:0; height:0; border-left: 16px solid transparent; border-right:16px solid transparent; border-bottom: 28px solid var(--accent);
+      filter: drop-shadow(0 4px 6px rgba(0,0,0,.35));
+    }
+
+    .controls{ display:flex; flex-wrap:wrap; gap:10px; align-items:center; }
+    .controls > *{ flex: none; }
+    select, button, .toggle, input[type="text"], textarea{
+      background: rgba(255,255,255,.10); color:var(--text); border:1px solid rgba(255,255,255,.14);
+      padding: 10px 12px; border-radius: 12px; font-size:14px;
+    }
+    button{ cursor:pointer; font-weight:700; letter-spacing:.3px; }
+    button.primary{ background: linear-gradient(135deg, var(--accent), var(--accent-2)); color:#0d0d0f; border:none; }
+    button.ghost{ background: transparent; border:1px dashed rgba(255,255,255,.25)}
+    button:disabled{ opacity:.5; cursor:not-allowed }
+
+    .side{ display:flex; flex-direction:column; gap: 12px; }
+    .side .card{ padding:14px }
+    .side h3{ margin:6px 0 6px; font-size: 14px; letter-spacing:.4px; text-transform: uppercase; opacity:.85 }
+    .side small{ color:var(--muted) }
+    .chips{ display:flex; flex-wrap:wrap; gap: 6px; }
+    .chip{ padding:6px 10px; border-radius:999px; background: rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.15); font-size:12px }
+
+    .options{ width:100%; min-height: 120px; resize: vertical; }
+
+    .winner{
+      position: fixed; inset:0; display:none; place-items:center; z-index:30; background: rgba(0,0,0,.4);
+      backdrop-filter: blur(2px);
+    }
+    .winner.active{ display:grid }
+    .winner-card{
+      width:min(680px, 92vw);
+      background: linear-gradient(135deg, rgba(255,255,255,.15), rgba(255,255,255,.05));
+      border:1px solid rgba(255,255,255,.28);
+      border-radius: 24px; padding: 22px; text-align:center; box-shadow: var(--shadow);
+      animation: pop .5s ease-out;
+    }
+    @keyframes pop{ from{ transform: scale(.92); opacity:0 } to{ transform: scale(1); opacity:1 } }
+    .winner h2{ font-size: clamp(22px, 4.6vw, 40px); margin: 6px 0 4px }
+    .winner p{ color: var(--muted); margin:0 0 16px }
+
+    .history{ display:flex; flex-wrap:wrap; gap:8px; }
+    .history .pill{ background: rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.16); padding:6px 10px; border-radius:999px; font-size:12px }
+
+    .footnote{ color:var(--muted); font-size:12px; margin-top:8px }
+    .sr-only{ position:absolute; width:1px; height:1px; margin:-1px; padding:0; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0 }
+  </style>
+</head>
+<body data-theme="huntrx">
+  <div class="app">
+    <header>
+      <div class="title">Walter, 2 mentirosas, Doménica y Prof. Yoli</div>
+      <div class="controls">
+        <label>
+          <select id="theme">
+            <option value="huntrx">🎛️ HuntrX (neón)</option>
+            <option value="taylor">💫 Taylor (pastel glam)</option>
+            <option value="bttf">🚗💨 Volver al Futuro</option>
+          </select>
+        </label>
+        <label class="toggle" title="Quitar ganadores de la lista">
+          <input type="checkbox" id="removeWinners" /> Eliminar ganador
+        </label>
+        <label class="toggle" title="Más rápido y con más chispas">
+          <input type="checkbox" id="partyMode" />
+        </label>
+        <button id="btnSpin" class="primary">Girar</button>
+        <button id="btnReset" class="ghost">Reset</button>
+      </div>
+    </header>
+
+    <div class="grid">
+      <div class="card">
+        <div class="wheel-wrap">
+          <div class="pointer"></div>
+          <canvas id="wheel" aria-label="Ruleta" role="img"></canvas>
+          <canvas id="confetti" aria-hidden="true" style="position:absolute; inset:0; pointer-events:none;"></canvas>
+        </div>
+      </div>
+
+      <div class="side">
+        <div class="card">
+          <h3>Opciones (edítalas si quieres)</h3>
+          <small>Una por línea. Se guardan automáticamente.</small>
+          <textarea id="options" class="options" spellcheck="false"></textarea>
+          <div class="chips" id="chips"></div>
+        </div>
+
+        <div class="card" hidden>
+          <h3>Colores del tema</h3>
+          <div class="chips" id="paletteChips"></div>
+        </div>
+
+        <div class="card">
+          <h3>Historial</h3>
+          <div class="history" id="history"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="winner" id="winner">
+    <div class="winner-card">
+      <h2 id="winnerName">—</h2>
+      <div class="controls" style="justify-content:center; margin-top:10px">
+        <button id="again" class="primary">Volver a girar</button>
+        <button id="closeWinner" class="ghost">Cerrar</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="sr-only" aria-live="polite" id="aria"></div>
+
+  <script>
+    // ====== THEMES & PALETTES ======
+    const PALETTES = {
+      huntrx: [
+        '#00E5FF', '#FF00A8', '#39FF14', '#7C3AED', '#00A3FF', '#FF6B6B', '#06B6D4', '#111827'
+      ],
+      taylor: [
+        '#F7CAD0', '#CDB4DB', '#A2D2FF', '#FFE066', '#6C5B7B', '#1B1B3A', '#D7263D', '#D4A5A5'
+      ], bttf: [
+        '#FF6A00', '#00B4FF', '#FFD166', '#EF476F',
+        '#073B4C', '#06D6A0', '#1F2937', '#F94144'
+      ]
+    };
+
+    // ====== STATE ======
+    const el = {
+      root: document.body,
+      wheel: document.getElementById('wheel'),
+      confetti: document.getElementById('confetti'),
+      theme: document.getElementById('theme'),
+      removeWinners: document.getElementById('removeWinners'),
+      partyMode: document.getElementById('partyMode'),
+      btnSpin: document.getElementById('btnSpin'),
+      btnReset: document.getElementById('btnReset'),
+      options: document.getElementById('options'),
+      chips: document.getElementById('chips'),
+      paletteChips: document.getElementById('paletteChips'),
+      winner: document.getElementById('winner'),
+      winnerName: document.getElementById('winnerName'),
+      again: document.getElementById('again'),
+      closeWinner: document.getElementById('closeWinner'),
+      history: document.getElementById('history'),
+      aria: document.getElementById('aria')
+    };
+
+    const DEFAULT_OPTIONS = [
+      'Nini (mentirosa 1)',
+      'Fran (Francesa^1/2)',
+      '(Doménica)',
+      '(Prof. Yolanda La mejor inspectora de EGB media)',
+      'Walter (hombre fiel y trabajador como todos los hombres)'
+    ];
+
+    let state = {
+      theme: localStorage.getItem('rx_theme') || 'huntrx',
+      options: JSON.parse(localStorage.getItem('rx_options') || 'null') || DEFAULT_OPTIONS,
+      removeWinners: localStorage.getItem('rx_remove') === '1' || false,
+      partyMode: localStorage.getItem('rx_party') === '1' || false,
+      history: JSON.parse(localStorage.getItem('rx_history') || '[]'),
+      spinning: false,
+      angle: 0,
+      lastTickIndex: -1
+    };
+
+    // ====== UTIL ======
+    const TAU = Math.PI * 2;
+    function clamp(n, a, b){ return Math.max(a, Math.min(b, n)); }
+    function easeOutCubic(t){ return 1 - Math.pow(1 - t, 3); }
+    function rand(min, max){ return Math.random() * (max - min) + min; }
+    function save(){
+      localStorage.setItem('rx_theme', state.theme);
+      localStorage.setItem('rx_options', JSON.stringify(state.options));
+      localStorage.setItem('rx_remove', state.removeWinners ? '1' : '0');
+      localStorage.setItem('rx_party', state.partyMode ? '1' : '0');
+      localStorage.setItem('rx_history', JSON.stringify(state.history));
+    }
+
+    // ====== WHEEL RENDERING ======
+    const ctx = el.wheel.getContext('2d');
+    const cfx = el.confetti.getContext('2d');
+
+    function resizeCanvas(canvas){
+      const dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
+      const rect = canvas.getBoundingClientRect();
+      canvas.width = Math.floor(rect.width * dpr);
+      canvas.height = Math.floor(rect.height * dpr);
+      const cx = canvas.getContext('2d');
+      cx.setTransform(dpr, 0, 0, dpr, 0, 0); // scale for crispness
+    }
+
+    function drawWheel(){
+      resizeCanvas(el.wheel);
+      const { width, height } = el.wheel.getBoundingClientRect();
+      const r = Math.min(width, height) / 2 - 8; // padding
+      const center = { x: width/2, y: height/2 };
+      ctx.clearRect(0,0,width,height);
+
+      const n = state.options.length;
+      if (!n) return;
+      const anglePer = TAU / n;
+      const palette = PALETTES[state.theme];
+
+      ctx.save();
+      ctx.translate(center.x, center.y);
+      ctx.rotate(-Math.PI/2); // make 0 at top
+      
+      for (let i=0;i<n;i++){
+        const start = i * anglePer + state.angle;
+        ctx.beginPath();
+        ctx.moveTo(0,0);
+        ctx.arc(0,0,r, start, start+anglePer);
+        ctx.closePath();
+        const color = palette[i % palette.length];
+        ctx.fillStyle = color;
+        ctx.strokeStyle = 'rgba(255,255,255,.18)';
+        ctx.lineWidth = 2;
+        ctx.fill();
+        ctx.stroke();
+
+        // Text
+        ctx.save();
+        ctx.rotate(start + anglePer/2);
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        const fontSize = clamp(r * 0.085, 10, 24);
+        ctx.font = `700 ${fontSize}px system-ui, -apple-system, Segoe UI, Roboto, Inter`;
+        ctx.fillStyle = '#0b0b10';
+        const label = state.options[i];
+        wrapText(ctx, label, r*0.64, 0, r*0.52, fontSize*1.1);
+        ctx.restore();
+      }
+
+      // Center button indicator circle
+      ctx.save();
+      ctx.rotate(0);
+      ctx.beginPath(); ctx.arc(0,0, Math.max(20, r*0.12), 0, TAU);
+      const grd = ctx.createRadialGradient(0,0, 2, 0,0, Math.max(20, r*0.12));
+      grd.addColorStop(0, 'rgba(255,255,255,.9)');
+      grd.addColorStop(1, 'rgba(255,255,255,.4)');
+      ctx.fillStyle = grd; ctx.fill();
+      ctx.restore();
+
+      ctx.restore();
+    }
+
+    function wrapText(ctx, text, x, y, maxWidth, lineHeight){
+      const words = text.split(' ');
+      let line = '';
+      const lines = [];
+      for (let n=0;n<words.length;n++){
+        const test = line + words[n] + ' ';
+        if (ctx.measureText(test).width > maxWidth && n>0){
+          lines.push(line.trim());
+          line = words[n] + ' ';
+        } else {
+          line = test;
+        }
+      }
+      lines.push(line.trim());
+      const offset = ((lines.length-1) * lineHeight) / 2;
+      for (let i=0;i<lines.length;i++){
+        ctx.fillText(lines[i], x, y - offset + i*lineHeight);
+      }
+    }
+
+    // ====== SPIN LOGIC ======
+    let animId = null;
+    function spin(){
+      if (state.spinning || state.options.length < 2) return;
+      state.spinning = true; el.btnSpin.disabled = true; hideWinner();
+
+      const duration = state.partyMode ? rand(3800, 5200) : rand(5200, 7200);
+      const spins = state.partyMode ? rand(5, 8) : rand(6, 10);
+      const extra = rand(0, TAU);
+      const startAngle = state.angle;
+      const endAngle = startAngle + spins * TAU + extra;
+      const start = performance.now();
+
+      state.lastTickIndex = getIndexAtAngle(state.angle);
+      clickTick();
+
+      function frame(now){
+        const t = clamp((now - start) / duration, 0, 1);
+        const p = easeOutCubic(t);
+        state.angle = startAngle + (endAngle - startAngle) * p;
+        drawWheel();
+        handleTick();
+        if (t < 1){ animId = requestAnimationFrame(frame); }
+        else { finish(); }
+      }
+      animId = requestAnimationFrame(frame);
+
+      function finish(){
+        cancelAnimationFrame(animId);
+        state.spinning = false; el.btnSpin.disabled = false;
+        const idx = getIndexAtAngle(state.angle);
+        const winner = state.options[idx];
+        state.history.unshift(winner);
+        state.history = state.history.slice(0, 10);
+        save();
+        updateHistory();
+        showWinner(winner);
+        burstConfetti();
+        if (state.removeWinners){
+          state.options.splice(idx, 1);
+          el.options.value = state.options.join('\n');
+          save();
+          drawWheel();
+          renderChips();
+        }
+      }
+    }
+
+    function getIndexAtAngle(angle){
+      const n = state.options.length;
+      const anglePer = TAU / n;
+      // normalize and convert so 0 is at top (because we rotated -90° when drawing)
+      const a = (TAU - (angle % TAU) + TAU) % TAU; // 0..TAU
+      const idx = Math.floor(a / anglePer) % n;
+      return idx;
+    }
+
+    function handleTick(){
+      const idx = getIndexAtAngle(state.angle);
+      if (idx !== state.lastTickIndex){
+        state.lastTickIndex = idx; clickTick();
+      }
+    }
+
+    // ====== SOUND (tick without external files) ======
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    let audioCtx = null;
+    function ensureAudio(){ audioCtx = audioCtx || new AudioCtx(); }
+    function clickTick(){
+      try{
+        ensureAudio();
+        const o = audioCtx.createOscillator();
+        const g = audioCtx.createGain();
+        o.type = 'square'; o.frequency.value = 900;
+        g.gain.value = 0.0001;
+        o.connect(g); g.connect(audioCtx.destination);
+        o.start();
+        const now = audioCtx.currentTime;
+        g.gain.exponentialRampToValueAtTime(0.2, now + 0.01);
+        g.gain.exponentialRampToValueAtTime(0.00001, now + 0.08);
+        o.stop(now + 0.09);
+      }catch(e){ /* ignore */ }
+    }
+
+    // ====== CONFETTI ======
+    let confettiParticles = [];
+    function burstConfetti(){
+      resizeCanvas(el.confetti);
+      const { width, height } = el.confetti.getBoundingClientRect();
+      const n = state.partyMode ? 240 : 120;
+      const palette = PALETTES[state.theme];
+      confettiParticles = [...Array(n)].map(()=>({
+        x: width/2 + rand(-20,20), y: 40 + rand(-10,10),
+        vx: rand(-3,3), vy: rand(1,4),
+        g: rand(0.05, 0.12), life: rand(60, 120),
+        size: rand(3, 6), color: palette[Math.floor(rand(0, palette.length))], rot: rand(0,TAU), vr: rand(-0.3,0.3)
+      }));
+      confettiLoop();
+    }
+    function confettiLoop(){
+      const { width, height } = el.confetti.getBoundingClientRect();
+      cfx.clearRect(0,0,width,height);
+      confettiParticles.forEach(p=>{
+        p.x += p.vx; p.y += p.vy; p.vy += p.g; p.rot += p.vr; p.life--;
+        cfx.save(); cfx.translate(p.x,p.y); cfx.rotate(p.rot);
+        cfx.fillStyle = p.color; cfx.fillRect(-p.size/2, -p.size/2, p.size, p.size);
+        cfx.restore();
+      });
+      confettiParticles = confettiParticles.filter(p=>p.life>0 && p.y<height+20);
+      if (confettiParticles.length){ requestAnimationFrame(confettiLoop); }
+      else { cfx.clearRect(0,0,width,height); }
+    }
+
+    // ====== UI BINDINGS ======
+    function renderChips(){
+      el.chips.innerHTML = '';
+      state.options.forEach((opt,i)=>{
+        const span = document.createElement('span');
+        span.className = 'chip'; span.textContent = `${i+1}. ${opt}`;
+        el.chips.appendChild(span);
+      });
+    }
+    function renderPalette(){
+      el.paletteChips.innerHTML = '';
+      PALETTES[state.theme].forEach(c=>{
+        const span = document.createElement('span');
+        span.className = 'chip'; span.style.background = c; span.style.color = '#0b0b10'; span.textContent = c;
+        span.title = c; el.paletteChips.appendChild(span);
+      });
+    }
+    function updateHistory(){
+      el.history.innerHTML = '';
+      state.history.forEach(h=>{
+        const pill = document.createElement('span'); pill.className = 'pill'; pill.textContent = h; el.history.appendChild(pill);
+      });
+    }
+    function showWinner(name){
+      el.winnerName.textContent = name;
+      el.aria.textContent = `Ganador: ${name}`;
+      el.winner.classList.add('active');
+    }
+    function hideWinner(){ el.winner.classList.remove('active'); }
+
+    // Inputs
+    el.options.addEventListener('input', ()=>{
+      const lines = el.options.value.split('\n').map(s=>s.trim()).filter(Boolean);
+      if (lines.length){ state.options = lines; save(); drawWheel(); renderChips(); }
+    });
+
+    el.theme.addEventListener('change', ()=>{
+      state.theme = el.theme.value; save();
+      document.body.setAttribute('data-theme', state.theme);
+      renderPalette(); drawWheel();
+    });
+    el.removeWinners.addEventListener('change', ()=>{ state.removeWinners = el.removeWinners.checked; save(); });
+    el.partyMode.addEventListener('change', ()=>{ state.partyMode = el.partyMode.checked; save(); });
+
+    el.btnSpin.addEventListener('click', spin);
+    el.btnReset.addEventListener('click', ()=>{
+      state.options = [...DEFAULT_OPTIONS];
+      state.history = [];
+      state.angle = 0; save();
+      el.options.value = state.options.join('\n');
+      renderChips(); updateHistory(); drawWheel();
+    });
+
+    el.again.addEventListener('click', ()=>{ hideWinner(); spin(); });
+    el.closeWinner.addEventListener('click', hideWinner);
+
+    // Spacebar to spin
+    window.addEventListener('keydown', (e)=>{
+      if (e.code === 'Space'){ e.preventDefault(); if (!state.spinning){ hideWinner(); spin(); } }
+    });
+
+    // Resize handling
+    window.addEventListener('resize', ()=>{ drawWheel(); resizeCanvas(el.confetti); });
+
+    // ====== INIT ======
+    function init(){
+      // Theme
+      document.body.setAttribute('data-theme', state.theme);
+      el.theme.value = state.theme;
+      el.removeWinners.checked = state.removeWinners;
+      el.partyMode.checked = state.partyMode;
+
+      // Options textarea
+      el.options.value = state.options.join('\n');
+      renderChips(); updateHistory(); renderPalette();
+      drawWheel(); resizeCanvas(el.confetti);
+    }
+    init();
+  </script>
+</body>
+</html>
