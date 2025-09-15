@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>Ruleta — Walter, 2 mentirosas, Doménica y Prof. Yoli</title>
   <style>
     :root{
@@ -120,6 +120,23 @@
     .footnote{ color:var(--muted); font-size:12px; margin-top:8px }
     .sr-only{ position:absolute; width:1px; height:1px; margin:-1px; padding:0; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0 }
   </style>
+
+  <style>
+/* iPhone & móviles: respeta el notch y alinea desde arriba */
+@media (max-width: 915px){
+  html, body{ min-height: 100dvh; }
+  body{
+    align-items: flex-start;              /* deja de centrar verticalmente */
+    padding-top: calc(env(safe-area-inset-top, 0px) + 18px); /* baja la app */
+  }
+  .app{ margin-top: 8px; } /* un empujoncito extra */
+}
+
+/* (Opcional) Mantén el header a la vista al hacer scroll */
+@media (max-width: 915px){
+  header{ position: sticky; top: calc(env(safe-area-inset-top, 0px) + 8px); z-index: 50; }
+}
+</style>
 </head>
 <body data-theme="huntrx">
   <div class="app">
@@ -223,9 +240,9 @@
 
     const DEFAULT_OPTIONS = [
       'Nini (mentirosa 1)',
-      'Fran (Francesa^1/2)',
-      '(Doménica)',
-      '(Prof. Yolanda La mejor inspectora de EGB media)',
+      'Fran (Francesa/2)',
+      'Doménica',
+      'Prof. Yolanda (La mejor inspectora de EGB media)',
       'Walter (hombre fiel y trabajador como todos los hombres)'
     ];
 
@@ -341,6 +358,20 @@
       }
     }
 
+    // ——— Weighted choice: Prof. Yolanda con 1/3 de probabilidad ———
+    function weightedIndex(list){
+      const weights = list.map(n =>
+        n.toLowerCase().includes('prof. yolanda') ? (1/4) : 1
+      );
+      const total = weights.reduce((a,b)=>a+b, 0);
+      let r = Math.random() * total;
+      for (let i = 0; i < weights.length; i++){
+        r -= weights[i];
+        if (r <= 0) return i;
+      }
+      return weights.length - 1; // respaldo
+    }
+
     // ====== SPIN LOGIC ======
     let animId = null;
     function spin(){
@@ -349,11 +380,22 @@
 
       const duration = state.partyMode ? rand(3800, 5200) : rand(5200, 7200);
       const spins = state.partyMode ? rand(5, 8) : rand(6, 10);
-      const extra = rand(0, TAU);
-      const startAngle = state.angle;
-      const endAngle = startAngle + spins * TAU + extra;
-      const start = performance.now();
 
+      // 1) Elegimos el ganador con pesos (Yolanda = 1/3 de los otros)
+      const n = state.options.length;
+      const anglePer = TAU / n;
+      const targetIdx = weightedIndex(state.options);
+
+      // 2) Calculamos un ángulo objetivo al centro (con margen) del segmento elegido
+      const desiredA = targetIdx * anglePer + rand(anglePer * 0.2, anglePer * 0.8);
+
+      // 3) Ajustamos el offset para que el puntero termine en ese segmento
+      const startAngle = state.angle;
+      const s = ((startAngle % TAU) + TAU) % TAU;
+      const baseOffset = ((TAU - desiredA - s) % TAU + TAU) % TAU;
+      const endAngle = startAngle + spins * TAU + baseOffset;
+
+      const start = performance.now();
       state.lastTickIndex = getIndexAtAngle(state.angle);
       clickTick();
 
@@ -371,7 +413,7 @@
       function finish(){
         cancelAnimationFrame(animId);
         state.spinning = false; el.btnSpin.disabled = false;
-        const idx = getIndexAtAngle(state.angle);
+        const idx = getIndexAtAngle(state.angle); // debe coincidir con targetIdx
         const winner = state.options[idx];
         state.history.unshift(winner);
         state.history = state.history.slice(0, 10);
@@ -387,6 +429,7 @@
           renderChips();
         }
       }
+
     }
 
     function getIndexAtAngle(angle){
